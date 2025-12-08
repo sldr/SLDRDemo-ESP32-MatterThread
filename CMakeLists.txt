@@ -3,4 +3,8 @@
 cmake_minimum_required(VERSION 3.16)
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
+
+set(PROJECT_VER "22.22")
+set(PROJECT_VER_NUMBER 22)
+
 project(SLDRDemo)
