@@ -2,3 +2,6 @@ CONFIG_APP_PROJECT_VER_FROM_CONFIG=n
 
 # Enable HKDF in mbedtls
 CONFIG_MBEDTLS_HKDF_C=y
+
+# Use a Project Config file
+CONFIG_CHIP_PROJECT_CONFIG="SLDRDemoProjectConfig.h"
