@@ -4,8 +4,41 @@
 #include <esp_chip_info.h>
 #include <esp_flash.h>
 #include <esp_system.h>
+#include <led_strip.h>
 
 #define TAG "SLDRDemo"
+
+static led_strip_handle_t led_strip;
+static uint8_t s_led_state = 0;
+
+static void blink_led(void)
+{
+    /* If the addressable LED is enabled */
+    if (s_led_state) {
+        led_strip_set_pixel(led_strip, 0, 22, 22, 22);
+        led_strip_refresh(led_strip); // Refresh the strip to send data
+    } else {
+        /* Set all LED off to clear all pixels */
+        led_strip_clear(led_strip);
+    }
+}
+
+static void configure_led(void)
+{
+    ESP_LOGI(TAG, "Example configured to blink addressable LED using RMT_CONFIG!");
+    /* LED strip initialization with the GPIO and pixels number*/
+    led_strip_config_t strip_config = {
+        .strip_gpio_num = CONFIG_BSP_LED_RGB_GPIO,
+        .max_leds = 1, // at least one LED on board
+    };
+    led_strip_rmt_config_t rmt_config = {
+        .resolution_hz = 10 * 1000 * 1000, // 10MHz
+        .flags.with_dma = false,
+    };
+    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
+    /* Set all LED off to clear all pixels */
+    led_strip_clear(led_strip);
+}
 
 void app_main(void)
 {
@@ -36,6 +69,25 @@ void app_main(void)
     // Initialize NVS (Non-Volatile Storage)
     ESP_ERROR_CHECK(nvs_flash_init());
     ESP_LOGI(TAG, "nvs_flash_init completed");
+
+    // Configure the LED
+    configure_led();
+    ESP_LOGI(TAG, "LED configured");
+
+    // Blink the LED in a loop
+    ESP_LOGI(TAG, "Starting LED blink loop");
+    while (true) {
+        if (s_led_state) {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //ESP_LOGI(TAG, "LED ON");
+        } else {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //ESP_LOGI(TAG, "LED OFF");
+        }
+        blink_led();
+        /* Toggle the LED state */
+        s_led_state = !s_led_state;
+    }
 
     ESP_LOGI(TAG, "app_main finished");
 }
