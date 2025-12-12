@@ -10,6 +10,7 @@
 
 static led_strip_handle_t led_strip;
 static uint8_t s_led_state = 0;
+TaskHandle_t led_blink_task_handle = NULL;
 
 static void blink_led(void)
 {
@@ -20,6 +21,24 @@ static void blink_led(void)
     } else {
         /* Set all LED off to clear all pixels */
         led_strip_clear(led_strip);
+    }
+}
+
+static void led_blink_task(void *arg)
+{
+    // Blink the LED in a loop
+    ESP_LOGI(TAG, "Starting LED blink loop");
+    while (true) {
+        if (s_led_state) {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //ESP_LOGI(TAG, "LED ON");
+        } else {
+            vTaskDelay(1000 / portTICK_PERIOD_MS);
+            //ESP_LOGI(TAG, "LED OFF");
+        }
+        blink_led();
+        /* Toggle the LED state */
+        s_led_state = !s_led_state;
     }
 }
 
@@ -74,20 +93,9 @@ void app_main(void)
     configure_led();
     ESP_LOGI(TAG, "LED configured");
 
-    // Blink the LED in a loop
-    ESP_LOGI(TAG, "Starting LED blink loop");
-    while (true) {
-        if (s_led_state) {
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            //ESP_LOGI(TAG, "LED ON");
-        } else {
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            //ESP_LOGI(TAG, "LED OFF");
-        }
-        blink_led();
-        /* Toggle the LED state */
-        s_led_state = !s_led_state;
-    }
+    // Create the LED blink task
+    ESP_LOGI(TAG, "calling xTaskCreate for led_blink_task");
+    xTaskCreate(led_blink_task, "led_blink_task", 2048, NULL, tskIDLE_PRIORITY, &led_blink_task_handle);
 
     ESP_LOGI(TAG, "app_main finished");
 }
