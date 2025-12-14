@@ -206,6 +206,8 @@ extern "C" void app_main(void)
     ESP_ERROR_CHECK(esp_flash_get_size(NULL, &size));
     ESP_LOGI(TAG, "Flash ID %" PRIu32 ", Flash Size %" PRIu32 "MB", id, size / (uint32_t)(1024 * 1024));
     ESP_LOGI(TAG, "Minimum free heap size: %" PRIu32 " bytes", esp_get_minimum_free_heap_size());
+    // Log Other information
+    ESP_LOGI(TAG, "FreeRTOS Version Number (task): %s", tskKERNEL_VERSION_NUMBER);
 
     // Initialize NVS (Non-Volatile Storage)
     ESP_ERROR_CHECK(nvs_flash_init());
@@ -216,7 +218,7 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "LED configured");
 
     // Create the LED blink task
-    SLDRDemo_clreate_led_blink_task();
+    SLDRDemo_clreate_blink_led_task();
 
     // Create a Matter node and add the mandatory Root Node device type on endpoint 0
     esp_matter::node::config_t node_config;
