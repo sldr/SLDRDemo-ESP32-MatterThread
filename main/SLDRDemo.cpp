@@ -1,11 +1,9 @@
-#include <stdio.h>
+#include <string>
 #include <esp_matter.h>
 #include <esp_log.h>
 #include <nvs_flash.h>
 #include <esp_chip_info.h>
 #include <esp_flash.h>
-#include <esp_system.h>
-#include <led_strip.h>
 #include <common_macros.h>
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <platform/ESP32/OpenthreadLauncher.h>
@@ -16,10 +14,6 @@
 #define TAG "SLDRDemo"
 
 constexpr auto k_timeout_seconds = 300;
-
-static led_strip_handle_t led_strip;
-static uint8_t s_led_state = 0;
-TaskHandle_t led_blink_task_handle = NULL;
 
 std::string DeviceEventTypeInfo(const uint16_t eventType)
 {
@@ -37,59 +31,29 @@ std::string DeviceEventTypeInfo(const uint16_t eventType)
     return ret;
 }
 
-static void blink_led(void)
-{
-    /* If the addressable LED is enabled */
-    if (s_led_state) {
-        led_strip_set_pixel(led_strip, 0, 22, 22, 22);
-        led_strip_refresh(led_strip); // Refresh the strip to send data
-    } else {
-        /* Set all LED off to clear all pixels */
-        led_strip_clear(led_strip);
-    }
-}
-
-static void led_blink_task(void *arg)
-{
-    // Blink the LED in a loop
-    ESP_LOGI(TAG, "Starting LED blink loop");
-    while (true) {
-        if (s_led_state) {
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            //ESP_LOGI(TAG, "LED ON");
-        } else {
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            //ESP_LOGI(TAG, "LED OFF");
-        }
-        blink_led();
-        /* Toggle the LED state */
-        s_led_state = !s_led_state;
-    }
-}
-
-static void configure_led(void)
-{
-    ESP_LOGI(TAG, "Example configured to blink addressable LED using RMT_CONFIG!");
-    /* LED strip initialization with the GPIO and pixels number*/
-    led_strip_config_t strip_config = {
-        .strip_gpio_num = CONFIG_BSP_LED_RGB_GPIO,
-        .max_leds = 1, // at least one LED on board
-    };
-    led_strip_rmt_config_t rmt_config = {};
-    rmt_config.resolution_hz = 10 * 1000 * 1000; // 10MHz
-    rmt_config.flags.with_dma = false;
-    ESP_ERROR_CHECK(led_strip_new_rmt_device(&strip_config, &rmt_config, &led_strip));
-    /* Set all LED off to clear all pixels */
-    led_strip_clear(led_strip);
-}
-
 // This callback is invoked when clients interact with the Identify Cluster.
 // In the callback implementation, an endpoint can identify itself. (e.g., by flashing an LED or light).
 static esp_err_t SLDRDemo_identification_cb(esp_matter::identification::callback_type_t type, uint16_t endpoint_id, uint8_t effect_id,
                                        uint8_t effect_variant, void *priv_data)
 {
-    ESP_LOGI(TAG, "Identification callback: type: %u, effect: %u, variant: %u", type, effect_id, effect_variant);
-    return ESP_OK;
+    esp_err_t err = ESP_OK;
+    switch (type) {
+        case esp_matter::identification::START:
+            ESP_LOGI(TAG, "START identification on endpoint_id %u", endpoint_id);
+            err = SLDRDemo_identification_start(endpoint_id, effect_id, effect_variant, priv_data);
+            break;
+        case esp_matter::identification::STOP:
+            ESP_LOGI(TAG, "STOP identification on endpoint_id %u", endpoint_id);
+            err = SLDRDemo_identification_stop(endpoint_id, effect_id, effect_variant, priv_data);
+            break;
+        case esp_matter::identification::EFFECT:
+            ESP_LOGI(TAG, "TRIGGER EFFECT on endpoint_id %u effect_id %u effect_variant %u", endpoint_id, effect_id, effect_variant);
+            break;
+        default:
+            ESP_LOGW(TAG, "Unknown identification CB type (%u) on endpoint_id %u", type, endpoint_id);
+            break;
+    }
+    return err;
 }
 
 
@@ -103,6 +67,7 @@ static esp_err_t SLDRDemo_attribute_update_cb(esp_matter::attribute::callback_ty
     switch (type) {
         case esp_matter::attribute::PRE_UPDATE:
             ESP_LOGI(TAG, "Attribute Pre Update CB: endpoint_id=%d, cluster_id=0x%04x, attribute_id=0x%04x", endpoint_id, cluster_id, attribute_id);
+            err = SLDRDemo_attribute_update(endpoint_id, cluster_id, attribute_id, val, priv_data);
             break;
         case esp_matter::attribute::POST_UPDATE:
             ESP_LOGI(TAG, "Attribute Post Update CB: endpoint_id=%d, cluster_id=0x%04x, attribute_id=0x%04x", endpoint_id, cluster_id, attribute_id);
@@ -247,12 +212,11 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "nvs_flash_init completed");
 
     // Configure the LED
-    configure_led();
+    SLDRDemo_configure_led();
     ESP_LOGI(TAG, "LED configured");
 
     // Create the LED blink task
-    ESP_LOGI(TAG, "calling xTaskCreate for led_blink_task");
-    xTaskCreate(led_blink_task, "led_blink_task", 2048, NULL, tskIDLE_PRIORITY, &led_blink_task_handle);
+    SLDRDemo_clreate_led_blink_task();
 
     // Create a Matter node and add the mandatory Root Node device type on endpoint 0
     esp_matter::node::config_t node_config;
@@ -267,6 +231,7 @@ extern "C" void app_main(void)
     // Get the On/Off Light endpoint ID
     uint16_t on_off_light_endpoint_id = esp_matter::endpoint::get_id(on_off_light_endpoint);
     ESP_LOGI(TAG, "On Off Light created with endpoint_id %d", on_off_light_endpoint_id);
+    SLDRDemo_set_on_off_light_endpoint_id(on_off_light_endpoint_id);
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
     /* Set OpenThread platform config */
