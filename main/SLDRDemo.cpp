@@ -9,6 +9,7 @@
 #include <platform/ESP32/OpenthreadLauncher.h>
 #endif
 
+#include "gen_dependencies_version_info.h"
 #include "SLDRDemo_driver.h"
 
 #define TAG "SLDRDemo"
@@ -208,6 +209,7 @@ extern "C" void app_main(void)
     ESP_LOGI(TAG, "Minimum free heap size: %" PRIu32 " bytes", esp_get_minimum_free_heap_size());
     // Log Other information
     ESP_LOGI(TAG, "FreeRTOS Version Number (task): %s", tskKERNEL_VERSION_NUMBER);
+    ESP_LOGI(TAG, "ESP-Matter: V%s", GEN_DEP_ESP_MATTER_VERSION);
 
     // Initialize NVS (Non-Volatile Storage)
     ESP_ERROR_CHECK(nvs_flash_init());
