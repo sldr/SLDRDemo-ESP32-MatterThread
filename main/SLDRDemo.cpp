@@ -11,26 +11,11 @@
 
 #include "gen_dependencies_version_info.h"
 #include "SLDRDemo_driver.h"
+#include "SLDRESPMatterUtils.h"
 
 #define TAG "SLDRDemo"
 
 constexpr auto k_timeout_seconds = 300;
-
-std::string DeviceEventTypeInfo(const uint16_t eventType)
-{
-    std::string ret;
-    if (chip::DeviceLayer::DeviceEventType::IsInternal(eventType)) {
-        ret += "internal ";
-    } else {
-        ret += "public ";
-    }
-    if (chip::DeviceLayer::DeviceEventType::IsPlatformSpecific(eventType)) {
-        ret += "platform-specific";
-    } else {
-        ret += "platform-generic";
-    }
-    return ret;
-}
 
 // This callback is invoked when clients interact with the Identify Cluster.
 // In the callback implementation, an endpoint can identify itself. (e.g., by flashing an LED or light).
@@ -82,103 +67,30 @@ static esp_err_t SLDRDemo_attribute_update_cb(esp_matter::attribute::callback_ty
 
 static void matter_event_cb(const ChipDeviceEvent *event, intptr_t arg)
 {
+    ESP_LOGI(TAG, "%s", sldr::GetDeviceEventTypeDetails(event).c_str());
     switch (event->Type) {
-    case chip::DeviceLayer::DeviceEventType::kInterfaceIpAddressChanged:
-        ESP_LOGI(TAG, "Interface IP Address changed");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kCommissioningComplete:
-        ESP_LOGI(TAG, "Commissioning complete");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kFailSafeTimerExpired:
-        ESP_LOGI(TAG, "Commissioning failed, fail safe timer expired");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kCommissioningSessionStarted:
-        ESP_LOGI(TAG, "Commissioning session started");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kCommissioningSessionStopped:
-        ESP_LOGI(TAG, "Commissioning session stopped");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kCommissioningWindowOpened:
-        ESP_LOGI(TAG, "Commissioning window opened");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kCommissioningWindowClosed:
-        ESP_LOGI(TAG, "Commissioning window closed");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kFabricRemoved:
-        {
-            ESP_LOGI(TAG, "Fabric removed successfully");
-            if (chip::Server::GetInstance().GetFabricTable().FabricCount() == 0)
+        case chip::DeviceLayer::DeviceEventType::kFabricRemoved:
             {
-                chip::CommissioningWindowManager & commissionMgr = chip::Server::GetInstance().GetCommissioningWindowManager();
-                constexpr auto kTimeoutSeconds = chip::System::Clock::Seconds16(k_timeout_seconds);
-                if (!commissionMgr.IsCommissioningWindowOpen())
+                ESP_LOGI(TAG, "Fabric removed successfully");
+                if (chip::Server::GetInstance().GetFabricTable().FabricCount() == 0)
                 {
-                    /* After removing last fabric, this example does not remove the Wi-Fi credentials
-                     * and still has IP connectivity so, only advertising on DNS-SD.
-                     */
-                    CHIP_ERROR err = commissionMgr.OpenBasicCommissioningWindow(kTimeoutSeconds,
-                                                    chip::CommissioningWindowAdvertisement::kDnssdOnly);
-                    if (err != CHIP_NO_ERROR)
+                    chip::CommissioningWindowManager & commissionMgr = chip::Server::GetInstance().GetCommissioningWindowManager();
+                    constexpr auto kTimeoutSeconds = chip::System::Clock::Seconds16(k_timeout_seconds);
+                    if (!commissionMgr.IsCommissioningWindowOpen())
                     {
-                        ESP_LOGE(TAG, "Failed to open commissioning window, err:%" CHIP_ERROR_FORMAT, err.Format());
+                        /* After removing last fabric, this example does not remove the Wi-Fi credentials
+                        * and still has IP connectivity so, only advertising on DNS-SD.
+                        */
+                        CHIP_ERROR err = commissionMgr.OpenBasicCommissioningWindow(kTimeoutSeconds,
+                                                        chip::CommissioningWindowAdvertisement::kDnssdOnly);
+                        if (err != CHIP_NO_ERROR)
+                        {
+                            ESP_LOGE(TAG, "Failed to open commissioning window, err:%" CHIP_ERROR_FORMAT, err.Format());
+                        }
                     }
                 }
+                break;
             }
-        break;
-        }
-
-    case chip::DeviceLayer::DeviceEventType::kFabricWillBeRemoved:
-        ESP_LOGI(TAG, "Fabric will be removed");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kFabricUpdated:
-        ESP_LOGI(TAG, "Fabric is updated");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kFabricCommitted:
-        ESP_LOGI(TAG, "Fabric is committed");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kBLEDeinitialized:
-        ESP_LOGI(TAG, "BLE deinitialized and memory reclaimed");
-        break;
-
-#ifdef CONFIG_ENABLE_ESP32_BLE_CONTROLLER
-    case chip::DeviceLayer::DeviceEventType::kPlatformESP32BLECentralConnected:
-        ESP_LOGI(TAG, "kPlatformESP32BLECentralConnected");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kPlatformESP32BLECentralConnectFailed:
-        ESP_LOGI(TAG, "kPlatformESP32BLECentralConnectFailed");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kPlatformESP32BLEWriteComplete:
-        ESP_LOGI(TAG, "kPlatformESP32BLEWriteComplete");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kPlatformESP32BLESubscribeOpComplete:
-        ESP_LOGI(TAG, "kPlatformESP32BLESubscribeOpComplete");
-        break;
-
-    case chip::DeviceLayer::DeviceEventType::kPlatformESP32BLEIndicationReceived:
-        ESP_LOGI(TAG, "kPlatformESP32BLEIndicationReceived");
-        break;
-#endif // CONFIG_ENABLE_ESP32_BLE_CONTROLLER
-
-    case chip::DeviceLayer::DeviceEventType::kESPSystemEvent:
-        ESP_LOGW(TAG, "Unexpected public ESP System Event (event.Platform.ESPSystemEvent.Base=%s event.Platform.ESPSystemEvent.Id=%ld)", event->Platform.ESPSystemEvent.Base, event->Platform.ESPSystemEvent.Id);
-        break;
-
-    default:
-        ESP_LOGW(TAG, "Unknown or unexpected %s chip::DeviceLayer::DeviceEventType (%d)", DeviceEventTypeInfo(event->Type).c_str(), event->Type);
-        break;
     }
 }
 

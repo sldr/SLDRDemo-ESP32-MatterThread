@@ -8,7 +8,7 @@ Usage:
 
 import sys
 import yaml
-from datetime import datetime
+from datetime import datetime, timezone
 
 def die(msg):
     print(f"Error: {msg}", file=sys.stderr)
@@ -25,7 +25,7 @@ def main():
         with open(lock_path, "r") as f:
             lock = yaml.safe_load(f)
     except Exception as e:
-        die(f"Failed to read lock file: {e}")
+        die(f"Failed to read dependencies lock file: {e}")
 
     deps = lock.get("dependencies", {})
 
@@ -37,8 +37,8 @@ def main():
     target = lock.get("target", "UNKNOWN")
     manifest_hash = lock.get("manifest_hash", "UNKNOWN")
     lock_version = lock.get("version", "UNKNOWN")
-    generated_at = datetime.utcnow().isoformat() + "Z"
-
+    generated_at = datetime.now(timezone.utc).isoformat()
+   
     header = f"""\
 /*
  * AUTO-GENERATED FILE — DO NOT EDIT
