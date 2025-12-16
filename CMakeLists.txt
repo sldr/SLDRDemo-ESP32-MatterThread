@@ -7,6 +7,11 @@ include($ENV{IDF_PATH}/tools/cmake/project.cmake)
 set(PROJECT_VER "22.22")
 set(PROJECT_VER_NUMBER 22022)
 
+set(EXTRA_COMPONENT_DIRS
+    "$ENV{ESP_MATTER_PATH}/examples/common/app_reset"
+    ${extra_components_dirs_append})
+
+
 project(SLDRDemo)
 
 # ------------------------------------------------------------

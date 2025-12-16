@@ -1,5 +1,7 @@
 #include <esp_log.h>
 #include <esp_matter.h>
+#include <iot_button.h>
+#include <bsp/esp-bsp.h>
 
 #include "SLDRDemo_driver.h"
 
@@ -80,6 +82,16 @@ void SLDRDemo_clreate_blink_led_task(void)
     xTaskCreate(blink_led_task, "led_blink_task", 2048, NULL, tskIDLE_PRIORITY, &led_blink_task_handle);
 }
 
+void SLDRDemo_set_blink_led_enable(bool enable)
+{
+    enable_blink = enable;
+    if (!identification_running) {
+        // Force it to the new state immediately if not in identification mode
+        s_led_state = enable_blink; // Set led state to on/off to to go to that immediately
+        xTaskAbortDelay(led_blink_task_handle); // Wake up the blink task immediately (ignore return status if not in delay state)
+    }
+}
+
 void SLDRDemo_set_on_off_light_endpoint_id(uint16_t endpoint_id)
 {
     on_off_light_endpoint_id = endpoint_id;
@@ -123,4 +135,64 @@ esp_err_t SLDRDemo_identification_stop(uint16_t endpoint_id, uint8_t effect_id, 
         }
     }
     return ESP_OK;
+}
+
+bool SLDRDemo_get_on_off_light(esp_matter::attribute_t *attribute)
+{
+    esp_matter_attr_val_t val = esp_matter_invalid(NULL);
+    esp_matter::attribute::get_val(attribute, &val);
+    return val.val.b;
+}
+
+bool SLDRDemo_get_on_off_light(void)
+{
+    esp_matter::attribute_t *attribute = esp_matter::attribute::get(on_off_light_endpoint_id, chip::app::Clusters::OnOff::Id, chip::app::Clusters::OnOff::Attributes::OnOff::Id);
+    return SLDRDemo_get_on_off_light(attribute);
+}
+
+void SLDRDemo_set_on_off_light(esp_matter::attribute_t *attribute, bool on)
+{
+    esp_matter_attr_val_t val = esp_matter_invalid(NULL);
+    esp_matter::attribute::get_val(attribute, &val);
+    val.val.b = on;
+    esp_matter::attribute::update(on_off_light_endpoint_id, chip::app::Clusters::OnOff::Id, chip::app::Clusters::OnOff::Attributes::OnOff::Id, &val);
+}
+
+void SLDRDemo_set_on_off_light(bool on)
+{
+    esp_matter::attribute_t *attribute = esp_matter::attribute::get(on_off_light_endpoint_id, chip::app::Clusters::OnOff::Id, chip::app::Clusters::OnOff::Attributes::OnOff::Id);
+    SLDRDemo_set_on_off_light(attribute, on);
+}
+
+void SLDRDemo_on_off_light_toggle(esp_matter::attribute_t *attribute)
+{
+    esp_matter_attr_val_t val = esp_matter_invalid(NULL);
+    esp_matter::attribute::get_val(attribute, &val);
+    val.val.b = !val.val.b;
+    esp_matter::attribute::update(on_off_light_endpoint_id, chip::app::Clusters::OnOff::Id, chip::app::Clusters::OnOff::Attributes::OnOff::Id, &val);
+}
+
+void SLDRDemo_on_off_light_toggle(void)
+{
+    esp_matter::attribute_t *attribute = esp_matter::attribute::get(on_off_light_endpoint_id, chip::app::Clusters::OnOff::Id, chip::app::Clusters::OnOff::Attributes::OnOff::Id);
+    SLDRDemo_on_off_light_toggle(attribute);
+}
+
+static void SLDRDemo_button_toggle_cb(void *arg, void *data)
+{
+    ESP_LOGI(TAG, "Toggle button pressed");
+    esp_matter::attribute_t *attribute = esp_matter::attribute::get(on_off_light_endpoint_id, chip::app::Clusters::OnOff::Id, chip::app::Clusters::OnOff::Attributes::OnOff::Id);
+    esp_matter_attr_val_t val = esp_matter_invalid(NULL);
+    esp_matter::attribute::get_val(attribute, &val);
+    val.val.b = !val.val.b;
+    esp_matter::attribute::update(on_off_light_endpoint_id, chip::app::Clusters::OnOff::Id, chip::app::Clusters::OnOff::Attributes::OnOff::Id, &val);
+}
+
+button_handle_t SLDRDemo_button_init()
+{
+    /* Initialize button */
+    button_handle_t btns[CONFIG_BSP_BUTTONS_NUM];
+    ESP_ERROR_CHECK(bsp_iot_button_create(btns, NULL, CONFIG_BSP_BUTTONS_NUM));
+    ESP_ERROR_CHECK(iot_button_register_cb(btns[0], BUTTON_PRESS_DOWN, NULL, SLDRDemo_button_toggle_cb, NULL));
+    return btns[0];
 }

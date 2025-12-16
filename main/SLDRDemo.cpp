@@ -8,6 +8,8 @@
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #include <platform/ESP32/OpenthreadLauncher.h>
 #endif
+#include <app_reset.h>
+#include <button_types.h>
 
 #include "gen_dependencies_version_info.h"
 #include "SLDRDemo_driver.h"
@@ -134,6 +136,10 @@ extern "C" void app_main(void)
     // Create the LED blink task
     SLDRDemo_clreate_blink_led_task();
 
+    // Init the button and use long press for reset on button
+    button_handle_t button_handle = SLDRDemo_button_init();
+    app_reset_button_register(button_handle);
+    
     // Create a Matter node and add the mandatory Root Node device type on endpoint 0
     esp_matter::node::config_t node_config;
     esp_matter::node_t *node = esp_matter::node::create(&node_config, SLDRDemo_attribute_update_cb, SLDRDemo_identification_cb);
@@ -148,6 +154,11 @@ extern "C" void app_main(void)
     uint16_t on_off_light_endpoint_id = esp_matter::endpoint::get_id(on_off_light_endpoint);
     ESP_LOGI(TAG, "On Off Light created with endpoint_id %d", on_off_light_endpoint_id);
     SLDRDemo_set_on_off_light_endpoint_id(on_off_light_endpoint_id);
+
+    // Mark deferred persistence for some attributes that might be changed rapidly
+    esp_matter::attribute_t *attribute = esp_matter::attribute::get(on_off_light_endpoint_id, chip::app::Clusters::OnOff::Id, chip::app::Clusters::OnOff::Attributes::OnOff::Id);
+    esp_matter::attribute::set_deferred_persistence(attribute);
+    SLDRDemo_set_blink_led_enable(SLDRDemo_get_on_off_light(attribute));
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
     /* Set OpenThread platform config */

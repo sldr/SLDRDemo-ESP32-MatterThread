@@ -1,12 +1,21 @@
 #include <led_strip.h>
 #include <esp_matter.h>
+#include <button_types.h>
 
 void SLDRDemo_configure_led(void);
 void SLDRDemo_clreate_blink_led_task(void);
 void SLDRDemo_set_on_off_light_endpoint_id(uint16_t endpoint_id);
+void SLDRDemo_set_blink_led_enable(bool enable);
 esp_err_t SLDRDemo_attribute_update(uint16_t endpoint_id, uint32_t cluster_id, uint32_t attribute_id, esp_matter_attr_val_t *val, void *priv_data);
 esp_err_t SLDRDemo_identification_start(uint16_t endpoint_id, uint8_t effect_id, uint8_t effect_variant, void *priv_data);
 esp_err_t SLDRDemo_identification_stop(uint16_t endpoint_id, uint8_t effect_id, uint8_t effect_variant, void *priv_data);
+button_handle_t SLDRDemo_button_init();
+bool SLDRDemo_get_on_off_light(esp_matter::attribute_t *attribute);
+bool SLDRDemo_get_on_off_light(void);
+void SLDRDemo_set_on_off_light(esp_matter::attribute_t *attribute, bool on);
+void SLDRDemo_set_on_off_light(bool on);
+void SLDRDemo_on_off_light_toggle(esp_matter::attribute_t *attribute);
+void SLDRDemo_on_off_light_toggle(void);
 
 #if CHIP_DEVICE_CONFIG_ENABLE_THREAD
 #define ESP_OPENTHREAD_DEFAULT_RADIO_CONFIG()                                           \
