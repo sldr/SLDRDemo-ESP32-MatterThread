@@ -66,6 +66,7 @@ When you update the code and don't want to re-pair it again to your home automat
 ## Pairing
 
 Use your standard procedure for adding a new Matter device to your home automation system. When you need to take a picture of the QR code for the new device take a picture of the image below:
+
 ![defult QR](https://docs.espressif.com/projects/esp-matter/en/release-v1.4.2/esp32c6/_images/matter_qrcode_20202021_3840.png)
 
 More details on comissioning can be found at [https://docs.espressif.com/projects/esp-matter/en/release-v1.4.2/esp32c6/developing.html#commissioning](https://docs.espressif.com/projects/esp-matter/en/release-v1.4.2/esp32c6/developing.html#commissioning).
