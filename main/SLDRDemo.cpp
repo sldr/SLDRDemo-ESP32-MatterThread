@@ -17,11 +17,33 @@
 
 #define TAG "SLDRDemo"
 
+// The Matter data model is described in ${ESP_MATTER_PATH}/connectedhomeip/connectedhomeip/data_model for each version. This was written based on the 1.4.2.
+// The devices (aka endpoints) are described in ${ESP_MATTER_PATH}/connectedhomeip/connectedhomeip/data_model/1.4.2/device_types/device_type_ids.json along
+// with the xml files for each. Each endpoint has clusters that are described in ${ESP_MATTER_PATH}/connectedhomeip/connectedhomeip/data_model/1.4.2/clusters/
+// cluster_ids.json along with the xml files for each. Each cluster contains attributes that are described in the cluster's xml file. Each cluster may contain
+// commands that are described in the cluster's xml file. At the top is a node that holds all the endpoints and each endpoint holds clusters and each cluster
+// holds attributes and commands. Node->Endpoint(s)->Cluster(s)->Attribute(s)/Command(s).
+//
+// Notes:
+// * When the node is created (via esp_matter::node::create()), the root node endpoint (endpoint 0) is also created automatically (internally via call to
+// endpoint::root_node::create()).
+// * As 1 or more endpoints are created, they will be added to the node and assigned a unique endpoint ID automatically. For example:
+// esp_matter::endpoint_t* on_off_light_endpoint = esp_matter::endpoint::on_off_light::create(node, ...); // creates and adds the endpoint to node
+// uint16_t on_off_light_endpoint_id = esp_matter::endpoint::get_id(on_off_light_endpoint);  // get the assigned endpoint ID
+// * Cluster IDs and Attribute IDs are constants that can be found in the respective cluster's xml file. Each endpoint can have the same cluster id used (like
+// the Descriptor cluster ID 29) but will have different values for their attributes.
+// * The node, endpoint, cluster, and attribute tend have a config type and the resulting type pointer after creation. For example, esp_matter::node::config_t
+// and esp_matter::node_t* for the node, esp_matter::endpoint::on_off_light::config_t and esp_matter::endpoint_t* for the endpoint,
+// esp_matter::cluster::descriptor::config_t and esp_matter::cluster_t* for the descriptor cluster, etc.
+// * It is possible to add custom attributes to standard clusters but some system that is connected to this Matter device may not recognize the custom attribute.
+// * It is possible to add custom clusters to a standard endpoint but some system that is connected to this Matter device may not recognize the custom cluster.
+
+
 constexpr auto k_timeout_seconds = 300;
 
 // This callback is invoked when clients interact with the Identify Cluster.
 // In the callback implementation, an endpoint can identify itself. (e.g., by flashing an LED or light).
-static esp_err_t SLDRDemo_identification_cb(esp_matter::identification::callback_type_t type, uint16_t endpoint_id, uint8_t effect_id,
+static esp_err_t SLDRDemo_identification_cb(esp_matter::identification::callback_type_t type, chip::EndpointId endpoint_id, uint8_t effect_id,
                                        uint8_t effect_variant, void *priv_data)
 {
     esp_err_t err = ESP_OK;
@@ -48,7 +70,7 @@ static esp_err_t SLDRDemo_identification_cb(esp_matter::identification::callback
 // This callback is called for every attribute update. The callback implementation shall
 // handle the desired attributes and return an appropriate error code. If the attribute
 // is not of your interest, please do not return an error code and strictly return ESP_OK.
-static esp_err_t SLDRDemo_attribute_update_cb(esp_matter::attribute::callback_type_t type, uint16_t endpoint_id, uint32_t cluster_id,
+static esp_err_t SLDRDemo_attribute_update_cb(esp_matter::attribute::callback_type_t type, chip::EndpointId endpoint_id, chip::ClusterId cluster_id,
                                          uint32_t attribute_id, esp_matter_attr_val_t *val, void *priv_data)
 {
     esp_err_t err = ESP_OK;
@@ -151,7 +173,7 @@ extern "C" void app_main(void)
     ABORT_APP_ON_FAILURE(on_off_light_endpoint != nullptr, ESP_LOGE(TAG, "Failed to create on off light endpoint"));
 
     // Get the On/Off Light endpoint ID
-    uint16_t on_off_light_endpoint_id = esp_matter::endpoint::get_id(on_off_light_endpoint);
+    chip::EndpointId on_off_light_endpoint_id = esp_matter::endpoint::get_id(on_off_light_endpoint);
     ESP_LOGI(TAG, "On Off Light created with endpoint_id %d", on_off_light_endpoint_id);
     SLDRDemo_set_on_off_light_endpoint_id(on_off_light_endpoint_id);
 
@@ -173,7 +195,6 @@ extern "C" void app_main(void)
     /* Matter start */
     esp_err_t err = esp_matter::start(matter_event_cb);
     ABORT_APP_ON_FAILURE(err == ESP_OK, ESP_LOGE(TAG, "Failed to start Matter, err:%d", err));
-
 
     ESP_LOGI(TAG, "app_main finished");
 }
